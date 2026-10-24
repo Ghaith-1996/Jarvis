@@ -1,0 +1,149 @@
+<!doctype html>
+<!-- P0 audio routing test: the same Chromium APIs Electron will use (enumerateDevices, getUserMedia exact deviceId, setSinkId). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS audio routing test</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; background: #fff; color: #111; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  select, button { font: inherit; padding: .4rem .6rem; margin-top: .25rem; }
+  select { width: 100%; }
+  button:focus-visible, select:focus-visible { outline: 3px solid #1a5fd0; outline-offset: 2px; }
+  meter { width: 100%; height: 1.5rem; }
+  #log { white-space: pre-wrap; background: #f3f3f3; padding: .75rem; font: 13px/1.4 ui-monospace, monospace; }
+  @media (prefers-color-scheme: dark) { body { background: #111; color: #eee; } #log { background: #222; } }
+</style>
+</head>
+<body>
+<h1>Audio routing test</h1>
+<p>1. Allow microphone. 2. Pick a mic and an output. 3. Record 4 s while speaking. 4. Play it back on the chosen output.</p>
+
+<button id="allow">Allow microphone access</button>
+
+<label for="mic">Microphone (input)</label>
+<select id="mic" disabled></select>
+<label for="meter">Live input level</label>
+<meter id="meter" min="0" max="1" value="0"></meter>
+
+<label for="out">Output (speakers / headphones)</label>
+<select id="out" disabled></select>
+
+<p>
+  <button id="rec" disabled>Record 4 s</button>
+  <button id="play" disabled>Play on chosen output</button>
+  <button id="stop" disabled>Stop</button>
+</p>
+
+<p id="status" role="status" aria-live="polite">Idle.</p>
+<h2>Log</h2>
+<div id="log" aria-live="off"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const log = (msg) => { $('log').textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; };
+const status = (msg) => { $('status').textContent = msg; log(msg); };
+
+let stream, audioCtx, analyser, clipUrl, player;
+
+async function listDevices() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  for (const [sel, kind] of [[$('mic'), 'audioinput'], [$('out'), 'audiooutput']]) {
+    const keep = sel.value;
+    sel.innerHTML = '';
+    for (const d of devices.filter((d) => d.kind === kind)) {
+      sel.add(new Option(d.label || `(unlabelled ${kind})`, d.deviceId));
+    }
+    // Never silently switch: if the chosen device vanished, say so and leave nothing selected.
+    if (keep && ![...sel.options].some((o) => o.value === keep)) {
+      sel.selectedIndex = -1;
+      status(`Selected ${kind} disconnected. Choose a device again.`);
+      if (kind === 'audioinput') stopInput();
+      if (kind === 'audiooutput') player?.pause();
+    } else if (keep) sel.value = keep;
+  }
+  log(`devices: ${devices.filter((d) => d.kind.startsWith('audio')).map((d) => `${d.kind}=${d.label}`).join(' | ')}`);
+}
+
+function stopInput() {
+  stream?.getTracks().forEach((t) => t.stop());
+  stream = null;
+}
+
+async function openMic() {
+  stopInput();
+  const id = $('mic').value;
+  if (!id) return;
+  // exact: fail instead of falling back to another microphone.
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: id }, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  const s = stream.getAudioTracks()[0].getSettings();
+  log(`mic open: ${stream.getAudioTracks()[0].label} rate=${s.sampleRate ?? '?'} channels=${s.channelCount ?? '?'}`);
+  audioCtx ??= new AudioContext();
+  analyser = audioCtx.createAnalyser();
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+}
+
+function meterLoop() {
+  if (analyser && stream) {
+    const buf = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(buf);
+    $('meter').value = Math.min(1, Math.max(...buf.map(Math.abs)));
+  } else $('meter').value = 0;
+  requestAnimationFrame(meterLoop);
+}
+
+$('allow').onclick = async () => {
+  try {
+    // Labels are only exposed after permission; release this temporary stream immediately.
+    (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach((t) => t.stop());
+    await listDevices();
+    ['mic', 'out', 'rec'].forEach((id) => ($(id).disabled = false));
+    if (!('setSinkId' in HTMLMediaElement.prototype)) status('This browser cannot route output (no setSinkId).');
+    await openMic();
+    status('Microphone allowed. Pick devices, then record.');
+  } catch (e) { status(`Microphone failed: ${e.name}: ${e.message}`); }
+};
+$('mic').onchange = () => openMic().catch((e) => status(`Could not open mic: ${e.name}: ${e.message}`));
+navigator.mediaDevices.addEventListener('devicechange', () => { log('devicechange'); listDevices(); });
+
+$('rec').onclick = async () => {
+  if (!stream) return status('No microphone open.');
+  const chunks = [];
+  const rec = new MediaRecorder(stream);
+  let peak = 0;
+  const t = setInterval(() => (peak = Math.max(peak, $('meter').value)), 50);
+  rec.ondataavailable = (e) => chunks.push(e.data);
+  rec.onstop = () => {
+    clearInterval(t);
+    const blob = new Blob(chunks, { type: rec.mimeType });
+    if (clipUrl) URL.revokeObjectURL(clipUrl);
+    clipUrl = URL.createObjectURL(blob); // in memory only, discarded on reload
+    $('play').disabled = false;
+    status(`Recorded ${blob.size} bytes (${rec.mimeType}), peak level ${peak.toFixed(2)}${peak < 0.02 ? ' (near silent: wrong mic or muted?)' : ''}.`);
+  };
+  rec.start();
+  $('rec').disabled = true;
+  status('Recording 4 s… speak now.');
+  setTimeout(() => { rec.stop(); $('rec').disabled = false; }, 4000);
+};
+
+$('play').onclick = async () => {
+  player?.pause();
+  player = new Audio(clipUrl);
+  const out = $('out');
+  try {
+    if (!out.value) return status('Choose an output first.');
+    await player.setSinkId(out.value);
+    await player.play();
+    $('stop').disabled = false;
+    status(`Playing on: ${out.selectedOptions[0].text}`);
+    player.onended = () => { $('stop').disabled = true; status('Playback finished. Did you hear it on the chosen output?'); };
+  } catch (e) { status(`Playback failed: ${e.name}: ${e.message}`); }
+};
+$('stop').onclick = () => { player?.pause(); $('stop').disabled = true; status('Stopped.'); };
+
+meterLoop();
+</script>
+</body>
+</html>
