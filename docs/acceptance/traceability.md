@@ -69,6 +69,6 @@ Status values: `planned`, `implemented`, `verified`, `blocked`, `excluded-by-use
 | Environment recheck | done | [p0 report](../p0/environment-and-codex.md) §1 |
 | Model access via Codex app-server | proven (happy path only) | [p0 report](../p0/environment-and-codex.md) §2; [probe](../../tools/p0/codex-probe.mjs) |
 | Auth route decision (ADR) | decided: route A (Codex login) | [p0 report](../p0/environment-and-codex.md) §3 |
-| FR/EN speech benchmark | blocked | Needs model downloads; "none in P0" chosen 2026-10-23 |
+| FR/EN speech benchmark | partial: minimal check run, GPU ASR working | [p0 report](../p0/environment-and-codex.md) §2b; voice verdict and real-voice test pending |
 | Output routing demonstration | done (user-reported) | [p0 report](../p0/environment-and-codex.md) §1; [test page](../../tools/p0/audio-routing.html) |
 | Threat model, license inventory, wireframes | planned | |

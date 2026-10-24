@@ -40,6 +40,35 @@ Findings along the way (all surfaced as clean `turn/completed status=failed` err
 
 Not yet tested (acceptance matrix "Model access"): expired session recovery, quota exhaustion, offline behaviour, token renewal.
 
+## 2b. Minimal FR/EN speech check (2026-10-23)
+
+Downloads (approved, into gitignored `.models/`, one folder each):
+
+| File | Source | Size | Verification | License |
+|---|---|---|---|---|
+| whisper-bin-x64.zip | ggml-org/whisper.cpp release b5454 | 8.9 MB | published SHA-256 OK | MIT |
+| ggml-small-q5_1.bin | huggingface.co/ggerganov/whisper.cpp | 190 MB | published SHA-256 OK | MIT |
+| piper_windows_amd64.zip | rhasspy/piper 2023.11.14-2 (archived) | 22.5 MB | size only (no published hash); sha256 f3c58906…efcea | MIT, bundles espeak-ng (GPL-3) |
+| fr_FR-siwis-medium | huggingface.co/rhasspy/piper-voices | 63.2 MB | published SHA-256 OK | CC-BY 4.0 dataset |
+| en_GB-cori-medium | huggingface.co/rhasspy/piper-voices | 63.5 MB | published SHA-256 OK | public-domain dataset |
+| whisper.cpp source v1.9.5 (commit d1be6fd) | github.com/ggml-org/whisper.cpp | 51 MB | git tag | MIT |
+
+GPU build: whisper.cpp compiled locally with `-DGGML_VULKAN=ON` using the already-installed VS 2022 C++ tools, VS-bundled CMake 3.31 and Vulkan SDK 1.4.363. Runs on `Vulkan0 = AMD Radeon RX 7800 XT`. No prebuilt Vulkan binary is published.
+
+Round trip ([`tools/p0/speech-check.mjs`](../../tools/p0/speech-check.mjs)): Piper speaks 10 FR/EN lines (names, dates, numbers, code-switching), whisper `small` transcribes them back.
+
+| Measure | Result |
+|---|---|
+| TTS time per sentence | p50 ~0.5 s, p95 ~0.7 s (whole clip, real-time factor ~0.13) |
+| ASR per clip, CPU (6 threads) | p50 2.1 s; encoder 1.58 s of it, model load 0.13 s |
+| ASR per clip, GPU (Vulkan) | p50 0.49 s per new process; warm single clip 0.35 s, encoder 0.03 s. First run after build ~1.9 s (shader compile, then cached) |
+| Round-trip WER | 13–24% FR, 16–24% EN depending on the run; forced language = auto-detect |
+| CPU vs GPU transcripts | identical on the same audio |
+
+Error sources: mostly TTS pronunciation of acronyms and borrowed words (French voice: "PDF", "commit"; English voice: "npm", "croissants", once "Schedule"), plus format differences (`14 h 30` → `14h30`, spelled-out amounts → `$1,249.99`). Piper output varies between runs (default noise scale), which moves WER run to run. Whisper also invented text on background noise during the live mic test (e.g. `[MÚSICA]`), so P1 needs push-to-talk or VAD gating and should drop near-silent segments.
+
+Not done: the user's ear verdict on the voices, a scored test of the user's own voice, and whisper as a persistent server (`whisper-server.exe` is built).
+
 ## 3. Decision: auth route A (2026-10-23)
 
 Decided by the user: JARVIS uses Codex's own ChatGPT login through app-server (route A), with the npm-global Codex CLI kept up to date.
@@ -57,5 +86,5 @@ Neither route grants native audio, image generation or computer use; those stay 
 
 ## 4. Next steps
 
-1. Remaining P0 proof: the FR/EN speech benchmark once model downloads are approved.
+1. Finish the speech check: user's ear verdict on Siwis/Cori, and a real-voice ASR check (default mic and USB mic).
 2. Model-access error paths: expired session, quota exhaustion, offline.
