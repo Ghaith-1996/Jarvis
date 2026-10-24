@@ -5,11 +5,11 @@ Status values: `planned`, `implemented`, `verified`, `blocked`, `excluded-by-use
 
 | ID | Phase | Feature | Status | Evidence / notes |
 |---|---|---|---|---|
-| C01 | P1 | FR/EN text chat, streaming, titles, search, export, task boundaries | planned | Model streaming proven in P0 probe ([p0 report](../p0/environment-and-codex.md)); no chat app yet |
-| C02 | P1 | Push-to-talk, mic state, cancel, transcript preview/correction, text-only mode | planned | |
-| C03 | P1 | Independent persistent input/output device selection, meter, tests, unplug detection | planned | P0 prototype passed in Edge (selection, meter, record, routed playback); unplug/persistence not verified |
-| C04 | P1 | FR/EN ASR + TTS, language override, voices, FR-CA locale option | planned | Needs P0 speech benchmark (downloads not yet approved) |
-| C05 | P1 | Stop speaking, interrupt, queue, no self-transcription | planned | |
+| C01 | P1 | FR/EN text chat, streaming, titles, search, export, task boundaries | implemented | P1 build; search/export/edit in UI; live chat turn verified by self-test ([handover](../p1/handover.md)) |
+| C02 | P1 | Push-to-talk, mic state, cancel, transcript preview/correction, text-only mode | implemented | P1 build; needs hands-on test |
+| C03 | P1 | Independent persistent input/output device selection, meter, tests, unplug detection | implemented | P1 build; unplug/new-ID handling unit-tested, hands-on test pending |
+| C04 | P1 | FR/EN ASR + TTS, language override, voices, FR-CA locale option | implemented | Local whisper (Vulkan) + Piper; self-test round trip 0.56 s |
+| C05 | P1 | Stop speaking, interrupt, queue, no self-transcription | implemented | Stop/interrupt/queue in P1 build; live interrupt not yet exercised |
 | C06 | P2 | VAD, bounded hands-free, barge-in, spoken confirmations | planned | |
 | C07 | P4 | Optional local wake word | planned | Optional; disabled until selected |
 | C08 | P2 | Long-answer summaries, readout, sensitive-content notifications | planned | |
@@ -43,7 +43,7 @@ Status values: `planned`, `implemented`, `verified`, `blocked`, `excluded-by-use
 | I03 | P3 | Tasks, notes, reminders, notification inbox | planned | |
 | I04 | P3 | OAuth connector setup, scopes, revocation | planned | |
 | I05 | P3 | Messaging connectors with verification | planned | |
-| M01 | P1 | Conversation continuity, explicit preferences, memory page | planned | |
+| M01 | P1 | Conversation continuity, explicit preferences, memory page | implemented | Memory page, "Remember this", thread resume |
 | M02 | P3 | Source-linked long-term memory | planned | |
 | M03 | P3 | Opt-in document retrieval | planned | |
 | A01 | P3 | Durable one-time/recurring jobs, timezone/DST | planned | |
@@ -56,9 +56,9 @@ Status values: `planned`, `implemented`, `verified`, `blocked`, `excluded-by-use
 | X02 | P4 | Smart-home adapters | planned | Optional |
 | X03 | P4 | Plugin SDK and manifests | planned | |
 | X04 | P4 | Generative media via reviewed providers | planned | |
-| O01 | P1 | Accessibility basics | planned | |
-| O02 | P1 | Settings and effective configuration | planned | |
-| O03 | P1–P4 | Redacted logs, audit, diagnostics, no telemetry | planned | |
+| O01 | P1 | Accessibility basics | implemented | Keyboard, labels, contrast, motion, text size; screen-reader pass pending |
+| O02 | P1 | Settings and effective configuration | implemented | Settings page + effective configuration |
+| O03 | P1–P4 | Redacted logs, audit, diagnostics, no telemetry | implemented (P1 part) | Redacted JSONL logs, audit table, diagnostics export |
 | O04 | P3 | Encrypted backup/restore, migrations | planned | |
 | O05 | P4 | Secure updates, license inventory, uninstall | planned | |
 
